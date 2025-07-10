@@ -35,16 +35,10 @@ Page *make_menus_page(Application& app);
 
 class Menus : public Page
 {
-    public:
-        Menus(Application& app) : 
-            Page(app),
-            logo("cinepi-gui/assets/img/logo.png")
-            {
-                console = spdlog::stdout_color_mt("menus");
-            }
-        ~Menus() {}
-
-        virtual void show() override;
+public:
+    Menus(Application& app);
+    ~Menus() {}
+    virtual void show() override;
 
     private:
 

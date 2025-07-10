@@ -1,13 +1,30 @@
 #include "Application.hpp"
 #include "Page.hpp"
 
-#define DISPLAY_WIDTH 1280
+#define DISPLAY_WIDTH 720
 #define DISPLAY_HEIGHT 720
 
+#include <cpp_redis/cpp_redis>
+#include <iostream>
+
+void test_redis() {
+    cpp_redis::client client;
+    client.connect();
+    client.set("cinepi-gui:test", "hello", [](cpp_redis::reply& reply) {});
+    client.get("cinepi-gui:test", [](cpp_redis::reply& reply) {
+        if (reply.is_string()) {
+            std::cout << "Redis test value: " << reply.as_string() << std::endl;
+        }
+    });
+    client.sync_commit();
+}
+
 int main()
-{
+{    
     Application app;
     app.init(DISPLAY_WIDTH,DISPLAY_HEIGHT);
+
+    test_redis(); // <-- Add here
 
     Page* viewport_page = make_viewport_page(app);
     Viewport* viewport = reinterpret_cast<Viewport*>(viewport_page);

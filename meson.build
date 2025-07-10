@@ -30,6 +30,8 @@ sdl2_dep = dependency('sdl2', method : 'pkg-config')
 egl_dep = dependency('egl')
 drm_dep = dependency('libdrm')
 libcamera_dep = dependency('libcamera', required : true)
+cpp_redis_dep = dependency('cpp_redis', required : true)
+tacopie_dep = dependency('tacopie', required : true)
 
 
 # Platform-specific configurations
@@ -41,10 +43,11 @@ else
     platform_deps = []
 endif
 
-# dependencies : [sdl2_dep, opengl_dep, egl_dep, drm_dep, spdlog_dep, libcamera_dep] + platform_deps,
+# dependencies : [sdl2_dep, opengl_dep, egl_dep, drm_dep, spdlog_dep, libcamera_dep, cpp_redis_dep, tacopie_dep] + platform_deps,
 
 # Executable
 executable('cinepi-gui', source_files,
            include_directories : include_directories(imgui_dir, join_paths(imgui_dir, 'backends')),
-           dependencies : [spdlog_dep, libcamera_dep, sdl2_dep, egl_dep, drm_dep] + platform_deps,
+           dependencies : [spdlog_dep, libcamera_dep, sdl2_dep, egl_dep, drm_dep, cpp_redis_dep, tacopie_dep] + platform_deps,
            install : true)
+           

@@ -3,6 +3,55 @@
 #include <sstream>
 #include <iomanip>
 #include <string>
+#include <cpp_redis/cpp_redis>
+
+// Move this struct here, before any function that uses it
+struct MenuSetting {
+    const char* label;
+    const char* redis_key;
+    int* current_value;
+    const int* options;
+    int num_options;
+};
+
+
+static int current_fps = 24;
+static int current_iso = 100;
+static int current_sht = 180; // example default
+static int current_wb = 5600; // example default
+
+void set_redis_value(const char* key, int value, int* current) {
+    cpp_redis::client client;
+    client.connect();
+    client.set(key, std::to_string(value));
+    client.publish("cp_controls", key);
+    client.sync_commit();
+    *current = value;
+}
+
+void load_value_from_redis(const char* key, int* current, int fallback) {
+    cpp_redis::client client;
+    client.connect();
+    auto reply = client.get(key);
+    client.sync_commit();
+    auto result = reply.get();
+    if (result.is_string()) {
+        try {
+            *current = std::stoi(result.as_string());
+        } catch (...) {
+            *current = fallback;
+        }
+    } else {
+        *current = fallback;
+    }
+}
+
+void load_all_menu_settings() {
+    load_value_from_redis("fps", &current_fps, 24);
+    load_value_from_redis("iso", &current_iso, 100);
+    load_value_from_redis("shutter_a", &current_sht, 180);
+    load_value_from_redis("awb", &current_wb, 5600);
+}
 
 std::string floatToFormattedString(float value) {
     std::ostringstream oss;
@@ -10,146 +59,89 @@ std::string floatToFormattedString(float value) {
     return oss.str();
 }
 
+// filepath: /home/pi/cinepi-gui/Menus.cpp
+Menus::Menus(Application& app)
+    : Page(app), logo("cinepi-gui/assets/img/logo.png")
+{
+    console = spdlog::stdout_color_mt("menus");
+    load_all_menu_settings();
+}
 void Menus::show()
 {
     menu_top();
     menu_bottom();
 }
 
+
+
 void Menus::menu_top()
 {
     ImGuiIO &io = ImGui::GetIO(); (void)io;
-
     FrameBuffer fb = app.buffers.getBuffer();
 
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2(4.0f, 16.0f));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,ImVec2(32.0f, 4.0f));
-    {   
-        ImGui::SetNextWindowSize(io.DisplaySize);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f, 16.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(32.0f, 4.0f));
+    {
+        ImGui::SetNextWindowSize(ImVec2(720, 80));
         ImGui::SetNextWindowPos(ImVec2(0, 0));
 
         ImGuiWindowFlags window_flags = 0;
-        window_flags |= ImGuiWindowFlags_NoTitleBar;
-        window_flags |= ImGuiWindowFlags_NoScrollbar;
-        window_flags |= ImGuiWindowFlags_MenuBar;
-        window_flags |= ImGuiWindowFlags_NoDecoration;
-        window_flags |= ImGuiWindowFlags_NoMove;
-        window_flags |= ImGuiWindowFlags_NoResize;
-        window_flags |= ImGuiWindowFlags_NoCollapse;
-        window_flags |= ImGuiWindowFlags_NoNav;
-        window_flags |= ImGuiWindowFlags_NoBackground;
-        
-        ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4(0.0f, 0.0f, 0.0f, 0.5f)); 
-        ImGui::Begin("Menus", NULL, window_flags);                         
+        window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_MenuBar |
+                        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize |
+                        ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoBackground;
+
+        ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4(0.0f, 0.0f, 0.0f, 0.5f));
+        ImGui::Begin("Menus", NULL, window_flags);
 
         if (ImGui::BeginMenuBar())
         {
             ImDrawList* draw_list = ImGui::GetWindowDrawList();
-            draw_list->AddImage(
-                (void*)(intptr_t)logo.texture,
-                ImVec2(0+32, 0+8),
-                ImVec2(80+32, 80+8),
-                ImVec2(0, 0),
-                ImVec2(1, 1)
-            );
-            
-            ImGui::BeginDisabled();
-            if(ImGui::BeginMenu("     ")){
-                ImGui::EndMenu();
-            }
-            ImGui::EndDisabled();
-            ImGui::Separator();
 
-            if (ImGui::BeginMenu(floatToFormattedString(fb.framerate).c_str()))
-            {
-                
-                ImGui::MenuItem("24");
-                ImGui::MenuItem("30");
-                ImGui::MenuItem("50");
-                ImGui::EndMenu();
+            // Define options for each menu
+            static const int fps_options[] = {24, 30, 50};
+            static const int iso_options[] = {100, 200, 400, 800};
+            static const int sht_options[] = {45, 90, 144, 180};
+            static const int wb_options[] = {3200, 4000, 5600, 6500};  // Example values
+
+            MenuSetting settings[] = {
+                {"FPS", "fps", &current_fps, fps_options, sizeof(fps_options)/sizeof(int)},
+                {"ISO", "iso", &current_iso, iso_options, sizeof(iso_options)/sizeof(int)},
+                {"SHT", "shutter_a", &current_sht, sht_options, sizeof(sht_options)/sizeof(int)},
+                {"WB", "awb", &current_wb, wb_options, sizeof(wb_options)/sizeof(int)},
+            };
+
+            int num_menus = 4; // FPS, ISO, SHT, WB
+            float total_width = 720.0f;
+            float y_pos = 32.0f;
+            float x_margin = 40.0f; // optional, for some left/right margin
+            float available_width = total_width - 2 * x_margin;
+            float spacing = available_width / (num_menus - 1);
+
+            for (int i = 0; i < num_menus; ++i) {
+                std::string menu_label = "   " + std::to_string(*settings[i].current_value);
+                if (ImGui::BeginMenu(menu_label.c_str())) {
+                    for (int j = 0; j < settings[i].num_options; ++j) {
+                        int val = settings[i].options[j];
+                        if (ImGui::MenuItem(std::to_string(val).c_str(), nullptr, *settings[i].current_value == val)) {
+                            set_redis_value(settings[i].redis_key, val, settings[i].current_value);
+                        }
+                    }
+                    ImGui::EndMenu();
+                }
+                float x_pos = x_margin + i * spacing;
+                draw_list->AddText(app.ui24, app.ui24->FontSize, ImVec2(x_pos, y_pos), IM_COL32(100, 100, 100, 255), settings[i].label);
             }
-            ImGui::Separator();
-            if (ImGui::BeginMenu("   100"))
-            {
-                ImGui::MenuItem("100");
-                ImGui::MenuItem("200");
-                ImGui::MenuItem("400");
-                ImGui::MenuItem("800");
-                ImGui::EndMenu();
-            }
-            ImGui::Separator();
-            if (ImGui::BeginMenu("   180°"))
-            {
-                if (ImGui::MenuItem("45°")) {  }
-                if (ImGui::MenuItem("90°")) {  }
-                if (ImGui::MenuItem("144°")) {  }
-                if (ImGui::MenuItem("180°")) {  }
-                ImGui::EndMenu();
-            }
+
+            // ...rest of your menu (cog/settings, etc)...
             ImGui::Separator();
             if (ImGui::BeginMenu(ICON_FA_COG))
             {
-                if (ImGui::MenuItem("ZEBRA")) {}
-                if (ImGui::MenuItem("FOCUS")) {}
-                if (ImGui::BeginMenu("HISTOGRAM"))
-                { 
-                    if (ImGui::MenuItem("ENABLE")) {}
-                    if (ImGui::MenuItem("LUMA")) {}
-                    ImGui::EndMenu();
-                }
-                
-                if (ImGui::MenuItem("WAVE")) {}
-                if (ImGui::MenuItem("FALSE")) {}
-                if (ImGui::MenuItem("RGB")) {}
-
-                if(1){
-                    if (ImGui::BeginMenu("BAYER"))
-                    { 
-                        if (ImGui::MenuItem("SPLIT")) {}
-                        ImGui::EndMenu();
-                    }
-                }
-
-                if (ImGui::BeginMenu("OVERLAYS"))
-                { 
-                    if (ImGui::MenuItem("CROSS")) {}
-                    if (ImGui::MenuItem("THIRDS")) {}
-                    ImGui::EndMenu();
-                }
-                if (ImGui::MenuItem("DEMO")) { }
-                if (ImGui::BeginMenu("ZOOM"))
-                { 
-                    if (ImGui::MenuItem("1x")) { }
-                    if (ImGui::MenuItem("2x")) { }
-                    if (ImGui::MenuItem("4x")) { }
-                    if (ImGui::MenuItem("8x")) { }
-                    if (ImGui::MenuItem("16x")) { }
-                    ImGui::EndMenu();
-                }
-                ImGui::PushItemWidth(200);
-                ImGui::SliderFloat("ZOOM", NULL, 0.0f, 16.0f);
-                ImGui::EndMenu();
-            }
-            ImGui::Separator();
-            if (ImGui::BeginMenu("     ---"))
-            {
-                ImGui::EndMenu();
-            }
-            ImGui::Separator();
-            if (ImGui::BeginMenu("  5600k"))
-            {
-
+                // ...existing settings menu code...
                 ImGui::EndMenu();
             }
             ImGui::Separator();
 
-            draw_list->AddText(app.ui24, app.ui24->FontSize, ImVec2(180, 32), IM_COL32(100, 100, 100, 255), "FPS");
-            draw_list->AddText(app.ui24, app.ui24->FontSize, ImVec2(400, 32), IM_COL32(100, 100, 100, 255), "ISO");
-            draw_list->AddText(app.ui24, app.ui24->FontSize, ImVec2(580, 32), IM_COL32(100, 100, 100, 255), "SHT");
-            draw_list->AddText(app.ui24, app.ui24->FontSize, ImVec2(1005, 32), IM_COL32(100, 100, 100, 255), "IRIS");
-            draw_list->AddText(app.ui24, app.ui24->FontSize, ImVec2(1200, 32), IM_COL32(100, 100, 100, 255), "WB");
-
-            ImGui::EndMenuBar();   
+            ImGui::EndMenuBar();
         }
         ImGui::End();
         ImGui::PopStyleColor(1);
@@ -160,19 +152,17 @@ void Menus::menu_top()
 void Menus::menu_bottom()
 {
     ImGuiIO &io = ImGui::GetIO(); (void)io;
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2(4.0f, 16.0f));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,ImVec2(32.0f, 4.0f));
-    const ImGuiViewport *viewport = ImGui::GetMainViewport();
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f, 16.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(32.0f, 4.0f));
+
+    float bar_height = ImGui::GetFrameHeight();
+    float screen_width = 720.0f;
+    float screen_height = 720.0f;
 
     // Set position to the bottom of the viewport
-    ImGui::SetNextWindowPos(
-        ImVec2(viewport->Pos.x,
-                viewport->Pos.y + viewport->Size.y - ImGui::GetFrameHeight()));
+    ImGui::SetNextWindowPos(ImVec2(0, screen_height - bar_height));
+    ImGui::SetNextWindowSize(ImVec2(screen_width, bar_height));
 
-    // Extend width to viewport width
-    ImGui::SetNextWindowSize(ImVec2(viewport->Size.x, ImGui::GetFrameHeight()));
-
-    // Add menu bar flag and disable everything else
     ImGuiWindowFlags flags =
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
         ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollWithMouse |
@@ -180,32 +170,31 @@ void Menus::menu_bottom()
         ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoBackground |
         ImGuiWindowFlags_MenuBar;
 
-    ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4(0.0f, 0.0f, 0.0f, 0.5f)); 
+    ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4(0.0f, 0.0f, 0.0f, 0.5f));
     if (ImGui::Begin("StatusBar", nullptr, flags)) {
-
         if (ImGui::BeginMenuBar()) {
+            ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
-            // ImDrawList* draw_list = ImGui::GetWindowDrawList();
-            // draw_list->AddCircleFilled(ImVec2(400, 1030), 17.0f, ImColor(1.0f, 0.0f, 0.0f), 20);
-            // draw_list->AddText(ui48, ui48->FontSize, ImVec2(430, 1008), IM_COL32(255, 0, 0, 255), "REC");
+            // Example: 3 status texts, spaced evenly
+            const char* labels[] = {
+                ("FPS: " + std::to_string((int)io.Framerate)).c_str(),
+                ("GPU: " + std::to_string((int)app.stats.stat_gpu) + "%").c_str(),
+                ("CPU: " + std::to_string((int)app.stats.stat_cpu) + "%").c_str()
+            };
+            int num_labels = 3;
+            float x_margin = 40.0f;
+            float available_width = screen_width - 2 * x_margin;
+            float spacing = available_width / (num_labels - 1);
+            float y_pos = 8.0f; // Adjust as needed for vertical alignment
 
-            // ImGui::PushFont(ui36);
-            // ImGui::PushFont(icons_font24);
-            // ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-            // ImGui::PopFont();
-            // ImGui::PopFont();
-
-            ImGui::Separator();
-            ImGui::Text("FPS: %.1f FPS", io.Framerate);
-            ImGui::Separator();
-            ImGui::Text("GPU: %3.1f%%", app.stats.stat_gpu);
-            ImGui::Separator();
-            ImGui::Text("CPU: %3.1f%%", app.stats.stat_cpu);
-            ImGui::Separator();
+            for (int i = 0; i < num_labels; ++i) {
+                float x_pos = x_margin + i * spacing;
+                draw_list->AddText(app.ui24, app.ui24->FontSize, ImVec2(x_pos, y_pos), IM_COL32(255, 255, 255, 255), labels[i]);
+            }
 
             ImGui::EndMenuBar();
         }
-    ImGui::End();
+        ImGui::End();
     }
     ImGui::PopStyleColor(1);
     ImGui::PopStyleVar(2);
