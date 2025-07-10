@@ -97,10 +97,10 @@ void Menus::menu_top()
             ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
             // Define options for each menu
-            static const int fps_options[] = {24, 30, 50};
-            static const int iso_options[] = {100, 200, 400, 800};
+            static const int fps_options[] = {1, 2, 4, 18, 24, 30, 50};
+            static const int iso_options[] = {100, 200, 400, 640, 800, 1200, 1600, 2500, 3200};
             static const int sht_options[] = {45, 90, 144, 180};
-            static const int wb_options[] = {3200, 4000, 5600, 6500};  // Example values
+            static const int wb_options[] = {3200, 4400, 5600};  // Example values
 
             MenuSetting settings[] = {
                 {"FPS", "fps", &current_fps, fps_options, sizeof(fps_options)/sizeof(int)},
@@ -131,13 +131,13 @@ void Menus::menu_top()
                     ImGui::EndMenu();
                 }
                 // Draw the label under the button
-                draw_list->AddText(app.ui24, app.ui24->FontSize, ImVec2(x, y_pos + 24), IM_COL32(100, 100, 100, 255), settings[i].label);
+                draw_list->AddText(app.ui16, app.ui16->FontSize, ImVec2(x, y_pos + 24), IM_COL32(100, 100, 100, 255), settings[i].label);
                 x += button_width + spacing;
             }
 
             // Cog/settings button at the end
             ImGui::SetCursorPosX(total_width - cog_width - spacing);
-            ImGui::PushFont(app.icons_font24); // or the font size you want
+            ImGui::PushFont(app.icons_font16); // or the font size you want
             if (ImGui::BeginMenu(ICON_FA_COG)) {
                 // ...existing settings menu code...
                 ImGui::EndMenu();
@@ -190,7 +190,7 @@ void Menus::menu_bottom()
 
             for (int i = 0; i < num_labels; ++i) {
                 float x_pos = x_margin + i * spacing;
-                draw_list->AddText(app.ui24, app.ui24->FontSize, ImVec2(x_pos, y_pos), IM_COL32(255, 255, 255, 255), labels[i]);
+                draw_list->AddText(app.ui16, app.ui16->FontSize, ImVec2(x_pos, y_pos), IM_COL32(255, 255, 255, 255), labels[i]);
             }
 
             ImGui::EndMenuBar();

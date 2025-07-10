@@ -79,6 +79,7 @@ SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_
     icons_config3.OversampleH = 4;
     icons_config3.OversampleV = 4;
 
+    icons_font16 = io.Fonts->AddFontFromFileTTF(icon_font_path, 16.0f, &icons_config1, icon_ranges);
     icons_font24 = io.Fonts->AddFontFromFileTTF(icon_font_path, 24.0f, &icons_config1, icon_ranges);
     icons_font36 = io.Fonts->AddFontFromFileTTF(icon_font_path, 36.0f, &icons_config2, icon_ranges);
     icons_font48 = io.Fonts->AddFontFromFileTTF(icon_font_path, 48.0f, &icons_config3, icon_ranges);

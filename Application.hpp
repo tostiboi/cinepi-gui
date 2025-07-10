@@ -52,6 +52,7 @@ class Application {
         unsigned int app_width;
         unsigned int app_height;
 
+        ImFont* icons_font16;
         ImFont* icons_font24;
         ImFont* icons_font36;
         ImFont* icons_font48;
