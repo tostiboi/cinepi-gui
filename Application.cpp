@@ -54,6 +54,12 @@ SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_
     ui36 = io.Fonts->AddFontFromFileTTF(main_font_path, 36);
     ui48 = io.Fonts->AddFontFromFileTTF(main_font_path, 48);
 
+    if (!ui8)  printf("Warning: Failed to load main font size 8\n");
+    if (!ui16) printf("Warning: Failed to load main font size 16\n");
+    if (!ui24) printf("Warning: Failed to load main font size 24\n");
+    if (!ui36) printf("Warning: Failed to load main font size 36\n");
+    if (!ui48) printf("Warning: Failed to load main font size 48\n");
+
     static const ImWchar icon_ranges[] = {ICON_MIN_FA, ICON_MAX_FA, 0};
     ImFontConfig icons_config1;
     icons_config1.MergeMode = true;
@@ -76,6 +82,10 @@ SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_OPENGL | SDL_WINDOW_
     icons_font24 = io.Fonts->AddFontFromFileTTF(icon_font_path, 24.0f, &icons_config1, icon_ranges);
     icons_font36 = io.Fonts->AddFontFromFileTTF(icon_font_path, 36.0f, &icons_config2, icon_ranges);
     icons_font48 = io.Fonts->AddFontFromFileTTF(icon_font_path, 48.0f, &icons_config3, icon_ranges);
+
+    if (!icons_font24) printf("Warning: Failed to load icon font size 24\n");
+    if (!icons_font36) printf("Warning: Failed to load icon font size 36\n");
+    if (!icons_font48) printf("Warning: Failed to load icon font size 48\n");
 
     ImGui::StyleColorsDark();
 
@@ -103,42 +113,12 @@ void Application::beginDraw(){
     ImGui::NewFrame();
 }
 
-void Application::internal_overlay(){
-    ImGuiIO &io = ImGui::GetIO(); (void)io;
-    ImGui::SetNextWindowSize(io.DisplaySize);
-    ImGui::SetNextWindowPos(ImVec2(0, 0));
 
-    ImGuiWindowFlags window_flags = 0;
-    window_flags |= ImGuiWindowFlags_NoTitleBar;
-    window_flags |= ImGuiWindowFlags_NoScrollbar;
-    window_flags |= ImGuiWindowFlags_NoDecoration;
-    window_flags |= ImGuiWindowFlags_NoInputs;
-    window_flags |= ImGuiWindowFlags_NoMove;
-    window_flags |= ImGuiWindowFlags_NoResize;
-    window_flags |= ImGuiWindowFlags_NoCollapse;
-    window_flags |= ImGuiWindowFlags_NoNav;
-    window_flags |= ImGuiWindowFlags_NoBackground;
-
-    ImGui::Begin("internal_overlay", NULL, window_flags); 
-    ImDrawList* draw_list = ImGui::GetWindowDrawList();
-    
-    // Calculate the position for the text
-    const char* version_text = "CINEPI-GUI v0.0.1";
-    ImVec2 text_size = ImGui::CalcTextSize(version_text);
-    ImVec2 text_pos = ImVec2(
-        io.DisplaySize.x - text_size.x - (-192),  // X position: window width - text width - padding
-        io.DisplaySize.y - text_size.y - (-32)   // Y position: window height - text height - padding
-    );
-
-    draw_list->AddText(ui16, ui16->FontSize, text_pos, IM_COL32(255, 255, 255, 128), version_text);
-    ImGui::End();
-}
 
 
 void Application::endDraw(){
     // Rendering
     ImGuiIO &io = ImGui::GetIO(); (void)io;
-    internal_overlay();
     ImGui::Render();
     glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);

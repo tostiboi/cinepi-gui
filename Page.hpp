@@ -35,20 +35,17 @@ Page *make_menus_page(Application& app);
 
 class Menus : public Page
 {
-public:
-    Menus(Application& app);
-    ~Menus() {}
-    virtual void show() override;
+    public:
+        Menus(Application& app); // <-- Only declare here
+        ~Menus() {}
+
+        virtual void show() override;
 
     private:
-
         int menu_height = 96;
-
         void menu_top();
         void menu_bottom();
-
         ImgAsset logo;
-        
 };
 
 class Overlays : public Page

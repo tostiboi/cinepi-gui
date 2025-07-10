@@ -1,9 +1,9 @@
 #include "Page.hpp"
-
 #include <sstream>
 #include <iomanip>
 #include <string>
 #include <cpp_redis/cpp_redis>
+#include "assets/font/font_awesome.h"
 
 // Move this struct here, before any function that uses it
 struct MenuSetting {
@@ -13,7 +13,6 @@ struct MenuSetting {
     const int* options;
     int num_options;
 };
-
 
 static int current_fps = 24;
 static int current_iso = 100;
@@ -82,7 +81,7 @@ void Menus::menu_top()
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f, 16.0f));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(32.0f, 4.0f));
     {
-        ImGui::SetNextWindowSize(ImVec2(720, 80));
+        ImGui::SetNextWindowSize(ImVec2(720, 40));
         ImGui::SetNextWindowPos(ImVec2(0, 0));
 
         ImGuiWindowFlags window_flags = 0;
@@ -112,12 +111,15 @@ void Menus::menu_top()
 
             int num_menus = 4; // FPS, ISO, SHT, WB
             float total_width = 720.0f;
-            float y_pos = 32.0f;
-            float x_margin = 40.0f; // optional, for some left/right margin
-            float available_width = total_width - 2 * x_margin;
-            float spacing = available_width / (num_menus - 1);
+            float button_width = 120.0f; // Set your desired button width
+            float cog_width = 40.0f;     // Width for the cog/settings button
+            float spacing = (total_width - (num_menus * button_width) - cog_width) / (num_menus + 1);
 
+            float y_pos = 8.0f; // Adjust as needed for vertical alignment
+
+            float x = spacing;
             for (int i = 0; i < num_menus; ++i) {
+                ImGui::SetCursorPosX(x);
                 std::string menu_label = "   " + std::to_string(*settings[i].current_value);
                 if (ImGui::BeginMenu(menu_label.c_str())) {
                     for (int j = 0; j < settings[i].num_options; ++j) {
@@ -128,18 +130,19 @@ void Menus::menu_top()
                     }
                     ImGui::EndMenu();
                 }
-                float x_pos = x_margin + i * spacing;
-                draw_list->AddText(app.ui24, app.ui24->FontSize, ImVec2(x_pos, y_pos), IM_COL32(100, 100, 100, 255), settings[i].label);
+                // Draw the label under the button
+                draw_list->AddText(app.ui24, app.ui24->FontSize, ImVec2(x, y_pos + 24), IM_COL32(100, 100, 100, 255), settings[i].label);
+                x += button_width + spacing;
             }
 
-            // ...rest of your menu (cog/settings, etc)...
-            ImGui::Separator();
-            if (ImGui::BeginMenu(ICON_FA_COG))
-            {
+            // Cog/settings button at the end
+            ImGui::SetCursorPosX(total_width - cog_width - spacing);
+            ImGui::PushFont(app.icons_font24); // or the font size you want
+            if (ImGui::BeginMenu(ICON_FA_COG)) {
                 // ...existing settings menu code...
                 ImGui::EndMenu();
             }
-            ImGui::Separator();
+            ImGui::PopFont();
 
             ImGui::EndMenuBar();
         }
@@ -155,13 +158,12 @@ void Menus::menu_bottom()
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(4.0f, 16.0f));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(32.0f, 4.0f));
 
-    float bar_height = ImGui::GetFrameHeight();
+    float bar_height = 40.0f; // Use a fixed height
     float screen_width = 720.0f;
     float screen_height = 720.0f;
 
-    // Set position to the bottom of the viewport
-    ImGui::SetNextWindowPos(ImVec2(0, screen_height - bar_height));
-    ImGui::SetNextWindowSize(ImVec2(screen_width, bar_height));
+    ImGui::SetNextWindowPos(ImVec2(0, 720 - 40));
+    ImGui::SetNextWindowSize(ImVec2(720, 40));
 
     ImGuiWindowFlags flags =
         ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoInputs |
@@ -175,7 +177,6 @@ void Menus::menu_bottom()
         if (ImGui::BeginMenuBar()) {
             ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
-            // Example: 3 status texts, spaced evenly
             const char* labels[] = {
                 ("FPS: " + std::to_string((int)io.Framerate)).c_str(),
                 ("GPU: " + std::to_string((int)app.stats.stat_gpu) + "%").c_str(),
@@ -185,7 +186,7 @@ void Menus::menu_bottom()
             float x_margin = 40.0f;
             float available_width = screen_width - 2 * x_margin;
             float spacing = available_width / (num_labels - 1);
-            float y_pos = 8.0f; // Adjust as needed for vertical alignment
+            float y_pos = 8.0f;
 
             for (int i = 0; i < num_labels; ++i) {
                 float x_pos = x_margin + i * spacing;
