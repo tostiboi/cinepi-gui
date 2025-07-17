@@ -1,0 +1,1 @@
+cinepi-raw --mode 2028:1080:12 --width 2028 --height 1080 --lores-width 1920 --lores-height 1080 -p 0,30,1920,1020 --post-process-file /home/pi/post-processing.json --shutter 20000 --awbgains 2.5,2.0 --awb auto
